@@ -2,6 +2,7 @@ import logging
 
 import pytest
 import re
+import time
 
 from tests.common.helpers.constants import DEFAULT_ASIC_ID
 from tests.common.helpers.multi_thread_utils import SafeThreadPoolExecutor
@@ -21,7 +22,8 @@ from tests.conftest import get_hosts_per_hwsku
 pytestmark = [
     pytest.mark.disable_loganalyzer,
     pytest.mark.topology('any'),
-    pytest.mark.device_type('vs')
+    pytest.mark.device_type('vs'),
+    pytest.mark.dualtor_skip_setup_mux_ports
 ]
 
 _cached_nodes_per_hwsku = None
@@ -230,13 +232,23 @@ def test_telemetry_output_ipv6_only(request, duthosts_ipv6_mgmt_only, localhost,
     log_eth0_interface_info(duthosts_ipv6_mgmt_only)
 
     def verify_telemetry_output_ipv6_only(dut):
+        # Wait 15 seconds after starting GNMI server
+        GNMI_SERVER_START_WAIT_TIME = 15
         with setup_streaming_telemetry_context(True, dut, localhost, ptfhost, gnxi_path):
             env = GNMIEnvironment(dut, GNMIEnvironment.TELEMETRY_MODE)
+            # Set up telemetry server
+            dut.shell('sonic-db-cli CONFIG_DB hset "%s|gnmi" user_auth none' % (env.gnmi_config_table),
+                      module_ignore_errors=False)
+            dut.shell('docker exec %s supervisorctl reload' % (env.gnmi_container),
+                      module_ignore_errors=False)
+            time.sleep(GNMI_SERVER_START_WAIT_TIME)
             dut_ip = get_mgmt_ipv6(dut)
             cmd = "~/gnmi_get -xpath_target COUNTERS_DB -xpath COUNTERS/Ethernet0 -target_addr \
                 [%s]:%s -logtostderr -insecure" % (dut_ip, env.gnmi_port)
             show_gnmi_out = dut.shell(cmd)['stdout']
             result = str(show_gnmi_out)
+            dut.shell('sonic-db-cli CONFIG_DB hdel "%s|gnmi" user_auth' % (env.gnmi_config_table),
+                      module_ignore_errors=False)
             inerrors_match = re.search("SAI_PORT_STAT_IF_IN_ERRORS", result)
             pytest_assert(inerrors_match is not None,
                           "SAI_PORT_STAT_IF_IN_ERRORS not found in gnmi output")
