@@ -64,6 +64,7 @@ r, ".* ERR dhcp_relay.*setsockopt.*No such device.*"
 r, ".* ERR syncd\d*#syncd.*Failed to get attr of SAI_OBJECT_TYPE_ACL_COUNTER.*"
 r, ".* ERR syncd\d*#syncd.*Failed to get (stats|attr) of .*(MACSEC|MACsec).*"
 r, ".*Metadata file \/etc\/sonic\/vs_chassis_metadata.json not found.*"
+ r, ".* ERR pmon#chassis_db_init: Failed to load chassis due to ModuleNotFoundError\\\("No module named 'sonic_platform'"\\\).*"
 
 ##### White list below messages found on physical devices for now. Need to address them later.
 
@@ -354,9 +355,6 @@ r, ".* ERR syncd#syncd: .* SAI_API_SWITCH:sai_object_type_get_availability:\d+ a
 
 # https://github.com/sonic-net/sonic-buildimage/issues/22346
 r, ".* ERR hostcfgd: \['sonic-kdump-config'[^]]*\] - failed.*"
-
-# https://github.com/sonic-net/sonic-buildimage/issues/22348
-r, ".* ERR pmon#chassis_db_init: Failed to load chassis due to ModuleNotFoundError.*"
 
 # https://msazure.visualstudio.com/One/_workitems/edit/33411748
 r, ".* NOTICE kernel:.*exe=\"/usr/bin/kill\".*"
