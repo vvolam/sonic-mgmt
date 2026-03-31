@@ -300,10 +300,24 @@ def enable_nat_for_dpuhosts(npu_sonichosts, inventories, dpu_hostnames):
                            module_attrs={"become": True})
 
             # Set up DNAT rules via sonic-dpu-mgmt-traffic.sh
+            # Retry logic: DPUs may not be immediately available after reboot
             dpus_arg = ",".join(dpu_name_ssh_port_dict.keys())
             ports_arg = ",".join(dpu_name_ssh_port_dict.values())
             nat_cmd = "sonic-dpu-mgmt-traffic.sh inbound -e --dpus {} --ports {}".format(dpus_arg, ports_arg)
-            npu_host.shell(nat_cmd, module_attrs={"become": True})
+
+            max_retries = 5
+            retry_delay = 20  # seconds
+            for attempt in range(max_retries):
+                try:
+                    npu_host.shell(nat_cmd, module_attrs={"become": True})
+                    break  # Success
+                except RunAnsibleModuleFailed as e:
+                    if attempt < max_retries - 1 and "not detected" in str(e):
+                        logger.warning("DPU not ready on %s, retrying in %ds (attempt %d/%d)",
+                                       npu_hostname, retry_delay, attempt + 1, max_retries)
+                        time.sleep(retry_delay)
+                    else:
+                        raise
 
             # Persist iptables rules
             npu_host.shell("iptables-save > /etc/iptables/rules.v4",
