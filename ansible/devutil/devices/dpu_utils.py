@@ -2,8 +2,6 @@ import logging
 import re
 import time
 
-from .ansible_hosts import RunAnsibleModuleFailed
-
 logger = logging.getLogger(__name__)
 
 
@@ -66,7 +64,7 @@ def is_pmon_running(npu_host, timeout=300, interval=30):
                 logger.info("pmon container is UP on %s", npu_host.hostname)
                 return True
         except Exception:
-            pass
+            pass  # Shell may fail if device is still initializing; retry on next attempt
         logger.info("Waiting for pmon container on %s (attempt %d/%d)", npu_host.hostname, attempt + 1, max_attempts)
         time.sleep(interval)
     logger.warning("pmon container not up on %s after %ds", npu_host.hostname, timeout)
